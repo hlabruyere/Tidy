@@ -1,4 +1,10 @@
-## 1 Merges the training and the test sets to create one data set.
+## 0. download and unzip the dataset
+if (!file.exists("UCI HAR Dataset")) {
+  download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip", "Dataset.zip")
+  unzip("Dataset.zip")
+}
+
+## 1. Merges the training and the test sets to create one data set.
   #import feature list
   features <- read.csv("UCI HAR Dataset/features.txt", sep = " ", header = FALSE)
   
@@ -13,6 +19,7 @@
     # clean unmerged tables
     rm("X_train")
     rm("X_test")
+    rm("features")
   
   #import and merge Labels in a "labelindex" column
     # read files
@@ -39,37 +46,57 @@
     rm("subject_test")
     
   #agregate all subjects,features and lables in a single table and remove old tables
-    All <- cbind(subject, X, Y)
+    FullDF <- cbind(subject, X, Y)
     rm("subject")
     rm("X")
     rm("Y")
     
 ## 2. Extracts only the measurements on the mean and standard deviation for each measurement.
-  names.all <- names(All)
+  names.all <- names(FullDF)
   names.filtered <- names.all[grep("subject|labelIndex|\\.mean\\.|\\.std\\.", names.all)]
-  All <- All[,name.filtered]
+  FullDF <- FullDF[,names.filtered]
+  rm("names.all")
+  rm("names.filtered")
 
 ## 3. Uses descriptive activity names to name the activities in the data set
   #import activity list
   activities <- read.csv("UCI HAR Dataset/activity_labels.txt", sep = " ", header = FALSE, col.names = c("index", "activity"))
   
   #Add activity column with merge
-  All <- merge(All,activities, by.x = "labelIndex", by.y = "index")
+  FullDF <- merge(FullDF,activities, by.x = "labelIndex", by.y = "index")
+  rm("activities")
   
   #drop old labelindex column
-  All <- All[,!(names(All) == "labelIndex")]
+  FullDF <- FullDF[,!(names(FullDF) == "labelIndex")]
 
 ## 4. Appropriately labels the data set with descriptive variable names
   # remove multiple dots from names
-  names(All) <- sub("\\.\\.\\.|\\.\\.", ".", names(All))
+  names(FullDF) <- sub("\\.\\.\\.|\\.\\.", ".", names(FullDF))
   
   # remove trailing dots
-  names(All) <- sub("\\.$", "", names(All))
+  names(FullDF) <- sub("\\.$", "", names(FullDF))
   
-  # rename feature.[mean|std].[X|Y|Z] into featureOnAxis[X|Y|Z].[mean|std]
-  names(All) <- sub("^([^.]*)\\.([^.]*)\\.([^.]*)$", "\\1OnAxis\\3.\\2", names(All))
+  # replace Acc by accelerometer, Gyro by gyroscope, ^t by time, ^f by frequency
+  names(FullDF) <- sub("Acc", "accelerometer", names(FullDF))
+  names(FullDF) <- sub("Gyro", "gyroscope", names(FullDF))
+  names(FullDF) <- sub("Mag", "magnitude", names(FullDF))
+  names(FullDF) <- sub("^t", "time", names(FullDF))
+  names(FullDF) <- sub("^f", "frequency", names(FullDF))
+  
+  # replace BodyBody by Body
+  names(FullDF) <- sub("BodyBody", "Body", names(FullDF))
+  
+  # rename feature.[mean|std].[X|Y|Z] into feature[X|Y|Z][mean|std]
+  names(FullDF) <- sub("^([^.]*)\\.([^.]*)\\.([^.]*)$", "\\1\\3\\2", names(FullDF))
+  names(FullDF) <- sub("std$", "standarddeviation", names(FullDF))
+  names(FullDF) <- gsub("\\.", "", names(FullDF))
+  
+  # set to lowercase
+  names(FullDF) <- tolower(names(FullDF))
+  
   
 ## 5. From the data set in step 4, creates a second, independent tidy 
 ##    data set with the average of each variable for each activity and each subject.
-  All.grouped <- aggregate(.~subject+activity,All,mean)
+  FullDF.tidy <- aggregate(.~subject+activity,FullDF,mean)
   
+  FullDF.tidy
